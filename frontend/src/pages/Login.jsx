@@ -25,9 +25,6 @@ const Login = () => {
             const accessToken = response?.data?.access_token;
             const user = response?.data?.user;
 
-            // DUBBING STATEMENT 1: Confirm token received from server
-            console.log('✅ LOGIN SUCCESS: Access Token received, length:', accessToken.length);
-            
             dispatch(setAuth({ user, accessToken }));
             
             setEmail('');
@@ -41,8 +38,6 @@ const Login = () => {
             } else {
                 setError('Login Failed');
             }
-            // DUBBING STATEMENT 2: Log login failure details
-            console.error('❌ LOGIN FAILURE:', err.response?.data || err.message);
         }
     };
     

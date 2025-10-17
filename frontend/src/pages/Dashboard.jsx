@@ -19,18 +19,11 @@ const Dashboard = () => {
         const controller = new AbortController();
 
         const getUser = async () => {
-            console.log('🚀 DASHBOARD MOUNT: Starting protected API call to /user');
             try {
                 const response = await axiosPrivate.get('/user', { signal: controller.signal }); 
                 setUserData(response.data);
-                console.log('✅ DASHBOARD FETCH: User data successfully retrieved.');
             } catch (err) {
-                // Since Strict Mode is off, any error here is a genuine failure.
-                // Revert to original robust logic: check for cancellation (just in case)
-                // and redirect on any other error (401, Network Error, etc.).
                 if (!axios.isCancel(err)) { 
-                    console.error('❌ DASHBOARD FETCH FAILED (CRITICAL): Redirecting to login.');
-                    console.error('Failure Details:', err.response?.status, err.message);
                     navigate('/login', { state: { from: location }, replace: true });
                 }
             }

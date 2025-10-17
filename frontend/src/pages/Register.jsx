@@ -43,7 +43,6 @@ const Register = () => {
             if (!err?.response) {
                 setErrMsg('No Server Response');
             } else if (err.response?.status === 422) {
-                // This can be more specific by parsing the errors object from Laravel
                 setErrMsg('Email is already taken or invalid data');
             } else {
                 setErrMsg('Registration Failed')
