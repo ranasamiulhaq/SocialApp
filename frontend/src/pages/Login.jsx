@@ -9,12 +9,10 @@ import { setAuth } from '../features/auth/authSlice';
 const LOGIN_URL = '/login';
 
 const Login = () => {
-    // Get the dispatch function from Redux
     const dispatch = useDispatch();
-
     const navigate = useNavigate();
     const location = useLocation();
-    const from = location.state?.from?.pathname || "/dashboard"; // Navigate to dashboard on success
+    const from = location.state?.from?.pathname || "/dashboard"; 
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,8 +25,9 @@ const Login = () => {
             const accessToken = response?.data?.access_token;
             const user = response?.data?.user;
 
-            // Dispatch the setAuth action with the user and token
-            console.log('Login Token is :', accessToken);
+            // DUBBING STATEMENT 1: Confirm token received from server
+            console.log('✅ LOGIN SUCCESS: Access Token received, length:', accessToken.length);
+            
             dispatch(setAuth({ user, accessToken }));
             
             setEmail('');
@@ -42,9 +41,11 @@ const Login = () => {
             } else {
                 setError('Login Failed');
             }
+            // DUBBING STATEMENT 2: Log login failure details
+            console.error('❌ LOGIN FAILURE:', err.response?.data || err.message);
         }
     };
-
+    
     return (
         <section className="bg-gray-100 min-h-screen flex items-center justify-center">
             <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">

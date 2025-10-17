@@ -1,30 +1,30 @@
-// useAxiosPrivate.js - CRITICAL FIX
+// useAxiosPrivate.js - REVERTED TO STANDARD HOOK PATTERN
 
 import { axiosPrivate } from "../api/axios";
 import { useEffect } from "react";
 import useRefreshToken from "./useRefreshToken";
 import { useSelector } from "react-redux";
-// FIX: Import the store and selector function
-import { store } from "../app/store"; // Assuming store is in '../app/store' or adjust path
 import { selectCurrentToken } from "../features/auth/authSlice";
 
 const useAxiosPrivate = () => {
     const refresh = useRefreshToken();
-    // We keep useSelector here only if we need it for other logic, 
-    // but the interceptor will use store.getState()
-    // const token = useSelector(selectCurrentToken); // Can be commented out/removed
+    // Use useSelector to get the token, which forces a re-run of useEffect when it changes.
+    const token = useSelector(selectCurrentToken); 
 
     useEffect(() => {
+        // DUBBING STATEMENT 1: Log when interceptors are REGISTERED/RE-REGISTERED
+        console.log(`➡️ INTERCEPTORS: Registering with token: ${!!token}`);
 
         const requestIntercept = axiosPrivate.interceptors.request.use(
             config => {
-                // FIX: Get the LATEST token directly from the Redux store on every request
-                const token = selectCurrentToken(store.getState());
-
-                // Only set the Authorization header if it's not already set (e.g., for retries)
-                // AND the token is available.
-                if (!config.headers['Authorization'] && token) { 
+                // We only set the Authorization header if it's not already present.
+                // This ensures that the response interceptor's retry doesn't go through here
+                // unless it explicitly forgot to set the header.
+                if (!config.headers['Authorization']) {
+                    console.log(`➡️ AXIOS REQUEST: Attaching token to request for ${config.url}. Token present: ${!!token}`);
                     config.headers['Authorization'] = `Bearer ${token}`;
+                } else {
+                    console.log(`♻️ AXIOS REQUEST: Header already set for retry to ${config.url}.`);
                 }
                 return config;
             }, (error) => Promise.reject(error)
@@ -34,23 +34,36 @@ const useAxiosPrivate = () => {
             response => response,
             async (error) => {
                 const prevRequest = error?.config;
-                if (error?.response?.status === 401 && !prevRequest?.sent) {
+                const status = error?.response?.status;
+                
+                // DUBBING STATEMENT 7: Log any error response status
+                console.log(`🛑 AXIOS RESPONSE ERROR: Status ${status} for URL ${prevRequest?.url}.`);
+                
+                if (status === 401 && !prevRequest?.sent) {
+                    console.log(`⚠️ 401 DETECTED: Attempting token refresh...`);
+                    
                     prevRequest.sent = true;
-                    const newAccessToken = await refresh();
-                    prevRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-                    return axiosPrivate(prevRequest);
+                    
+                    try {
+                        const newAccessToken = await refresh();
+                        prevRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+                        console.log(`✅ REFRESH SUCCESS: Retrying request to ${prevRequest?.url} with new token.`);
+                        return axiosPrivate(prevRequest);
+                    } catch (refreshError) {
+                        console.error('❌ REFRESH FAILURE: Logging out user.', refreshError.response?.data || refreshError.message);
+                        return Promise.reject(error);
+                    }
                 }
                 return Promise.reject(error);
             }
         );
 
         return () => {
+            console.log('🧹 INTERCEPTORS: Ejecting old interceptors.');
             axiosPrivate.interceptors.request.eject(requestIntercept);
             axiosPrivate.interceptors.response.eject(responseIntercept);
         }
-    // FIX: Remove 'token' from the dependency array. 
-    // The interceptor now reads the token directly from the store.
-    }, [refresh]) 
+    }, [token, refresh]) // Dependency on token is essential for updates
 
     return axiosPrivate;
 }

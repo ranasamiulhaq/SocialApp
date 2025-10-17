@@ -1,10 +1,11 @@
+// Dashboard.jsx - FINAL CLEANUP
+
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-// Correctly importing `clearAuth` instead of the non-existent `logOut`
 import { selectCurrentUser, clearAuth } from "../features/auth/authSlice";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { useEffect, useState } from "react";
-import axios from "../api/axios";
+import axios from "axios"; 
 
 const Dashboard = () => {
     const user = useSelector(selectCurrentUser);
@@ -15,15 +16,21 @@ const Dashboard = () => {
     const [userData, setUserData] = useState(null);
 
     useEffect(() => {
-        const controller = new AbortController(); // Necessary for cleanup
+        const controller = new AbortController();
 
         const getUser = async () => {
+            console.log('🚀 DASHBOARD MOUNT: Starting protected API call to /user');
             try {
-                const response = await axiosPrivate.get('/user', { signal: controller.signal });
+                const response = await axiosPrivate.get('/user', { signal: controller.signal }); 
                 setUserData(response.data);
+                console.log('✅ DASHBOARD FETCH: User data successfully retrieved.');
             } catch (err) {
-                if (!axios.isCancel(err)) {
-                    console.error(err);
+                // Since Strict Mode is off, any error here is a genuine failure.
+                // Revert to original robust logic: check for cancellation (just in case)
+                // and redirect on any other error (401, Network Error, etc.).
+                if (!axios.isCancel(err)) { 
+                    console.error('❌ DASHBOARD FETCH FAILED (CRITICAL): Redirecting to login.');
+                    console.error('Failure Details:', err.response?.status, err.message);
                     navigate('/login', { state: { from: location }, replace: true });
                 }
             }
@@ -34,15 +41,12 @@ const Dashboard = () => {
         return () => {
             controller.abort();
         }
-    }, [axiosPrivate, navigate, location]) // Keep these dependencies
-
-
+    }, [axiosPrivate, navigate, location])
 
 
     const handleLogout = async () => {
         try {
             await axiosPrivate.post('/logout');
-            // Dispatching the correct logout action
             dispatch(clearAuth());
             navigate('/login');
         } catch (err) {
@@ -66,4 +70,3 @@ const Dashboard = () => {
 }
 
 export default Dashboard;
-
