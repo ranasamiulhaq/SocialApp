@@ -28,6 +28,7 @@ const Login = () => {
             const user = response?.data?.user;
 
             // Dispatch the setAuth action with the user and token
+            console.log('Login Token is :', accessToken);
             dispatch(setAuth({ user, accessToken }));
             
             setEmail('');

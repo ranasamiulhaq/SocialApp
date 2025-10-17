@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { selectCurrentUser, clearAuth } from "../features/auth/authSlice";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import { useEffect, useState } from "react";
+import axios from "../api/axios";
 
 const Dashboard = () => {
     const user = useSelector(selectCurrentUser);
@@ -14,29 +15,28 @@ const Dashboard = () => {
     const [userData, setUserData] = useState(null);
 
     useEffect(() => {
-        let isMounted = true;
-        const controller = new AbortController();
+        const controller = new AbortController(); // Necessary for cleanup
 
         const getUser = async () => {
             try {
-                const response = await axiosPrivate.get('/user', {
-                    signal: controller.signal
-                });
-                isMounted && setUserData(response.data);
+                const response = await axiosPrivate.get('/user', { signal: controller.signal });
+                setUserData(response.data);
             } catch (err) {
-                console.error(err);
-                // Redirect to login if the user fetch fails (e.g., token revoked)
-                navigate('/login', { state: { from: location }, replace: true });
+                if (!axios.isCancel(err)) {
+                    console.error(err);
+                    navigate('/login', { state: { from: location }, replace: true });
+                }
             }
         }
 
         getUser();
 
         return () => {
-            isMounted = false;
             controller.abort();
         }
-    }, [])
+    }, [axiosPrivate, navigate, location]) // Keep these dependencies
+
+
 
 
     const handleLogout = async () => {

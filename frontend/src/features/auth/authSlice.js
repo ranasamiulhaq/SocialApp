@@ -13,7 +13,6 @@ const authSlice = createSlice({
             state.user = action.payload.user;
             state.token = action.payload.accessToken;
         },
-        // New reducer specifically for refreshing the access token
         setNewToken: (state, action) => {
             state.token = action.payload.accessToken;
         },
