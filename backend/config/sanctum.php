@@ -40,7 +40,7 @@ return [
     |
     */
     // CORRECTED: Removed the duplicate key and set a clear expiration time.
-    'expiration' => 15,
+    'expiration' => 2,
 
     /*
     |--------------------------------------------------------------------------

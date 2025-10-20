@@ -53,21 +53,29 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid Credentials'], 401);
         }
 
+        // Delete any existing tokens for cleanup
         $user->tokens()->delete();
 
+        // 1. Create short-lived Access Token (uses sanctum.expiration from config)
         $accessToken = $user->createToken('access_token',['*'], Carbon::now()->addMinutes(config('sanctum.expiration')))->plainTextToken;
+        
+        // 2. Create long-lived Refresh Token (7 days)
         $refreshToken = $user->createToken('refresh_token',['*'], Carbon::now()->addDays(7))->plainTextToken;
 
+        // Return Access Token in body and Refresh Token in an HttpOnly cookie
         return response()->json([
             'message' => 'Token Granted',
             'access_token'=> $accessToken,
             'user' => $user,
-            ])->cookie('refresh_token',$refreshToken,60*24);
+            ])->cookie('refresh_token',$refreshToken,60*24*7, '/', null, false, true, false, 'lax'); 
+            // Note: Cookie lifetime is set to 7 days (60*24*7) to match token expiration
     }
 
     public function logout(Request $request){
+        // Delete all tokens for the user
         $request-> user()->tokens()->delete();
 
+        // Clear the refresh token cookie
         return response()->json(['messege' => ' User Logged Out Successfully'])->withoutCookie('refresh_token');
     }
 
@@ -86,18 +94,24 @@ class AuthController extends Controller
         list($tokenId, $token) = explode('|', $refreshTokenFromCookie, 2);
         $tokenData = PersonalAccessToken::find($tokenId);
 
+        // Security check: Verify token existence, hash match, and token name
         if ( !$tokenData || !hash_equals($tokenData->token, hash('sha256', $token)) || $tokenData->name !== 'refresh_token'){
             return response()->json(['message' => 'Invalid refresh token.'], 401);
         }
         
-        if ($tokenData->created_at->addDays(1)->isPast()) {
+        // CHECK FIX: Check if the refresh token is older than 7 days (its intended lifespan)
+        // If the token is too old, delete it and force re-login.
+        if ($tokenData->created_at->addDays(7)->isPast()) { 
             $tokenData->delete();
-            return response()->json(['message' => 'Refresh token expired.'], 401);
+            return response()->json(['message' => 'Refresh token expired. Please log in again.'], 401);
         }
         
         $user = $tokenData->tokenable;
+        
+        // Revoke the old Access Token to maintain a single active token
         $user->tokens()->where('name', 'access_token')->delete();
 
+        // Generate a brand new Access Token with the configured short expiry time
         $newAccessToken = $user->createToken('access_token', ['*'], Carbon::now()->addMinutes(config('sanctum.expiration')))->plainTextToken;
 
         return response()->json([
