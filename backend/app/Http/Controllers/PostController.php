@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post; // Assuming you have a Post model
+use App\Models\Post;
 use Illuminate\Http\Request;
 
 class PostController extends Controller
@@ -16,13 +16,11 @@ class PostController extends Controller
      public function getFeedPosts()
     {
         $followingIds = auth()->user()->following()->pluck('id')->toArray();
-
-        // Add the current user's ID to the list to show their own posts
         $userIds = array_merge($followingIds, [auth()->id()]);
         
         $posts = Post::whereIn('user_id', $userIds)
-            ->with('user') // Eager load the user who created the post
-            ->latest() // Order by creation date descending
+            ->with('user') 
+            ->latest() 
             ->get();
 
         return response()->json($posts);

@@ -12,13 +12,8 @@ return new class extends Migration
 public function up(): void
     {
         Schema::create('follows', function (Blueprint $table) {
-            // The user who is doing the following
             $table->foreignId('follower_id')->constrained('users')->onDelete('cascade');
-            
-            // The user who is being followed
             $table->foreignId('following_id')->constrained('users')->onDelete('cascade');
-            
-            // Use both IDs as the primary key to prevent duplicate follow relationships
             $table->primary(['follower_id', 'following_id']);
             
             $table->timestamps();

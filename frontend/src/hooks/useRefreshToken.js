@@ -7,16 +7,16 @@ const useRefreshToken = () => {
 
     const refresh = async () => {
         try {
-            console.log("[useRefreshToken] Attempting POST to /refresh endpoint..."); // DEBUG START
+            console.log("[useRefreshToken] Attempting POST to /refresh endpoint...");
             const response = await axios.post('/refresh', {}, {
                 withCredentials: true
             });
             const newAccessToken = response.data.access_token;
-            console.log("[useRefreshToken] Refresh successful. New access token received."); // DEBUG SUCCESS
+            console.log("[useRefreshToken] Refresh successful. New access token received.");
             dispatch(setNewToken({ accessToken: newAccessToken }));
             return newAccessToken;
         } catch (err) {
-            console.error("[useRefreshToken] Refresh API call failed.", err.response?.data || err.message); // DEBUG FAILURE
+            console.error("[useRefreshToken] Refresh API call failed.", err.response?.data || err.message); 
             throw err;
         }
     }
