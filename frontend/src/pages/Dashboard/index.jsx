@@ -4,9 +4,9 @@ import { selectCurrentUser, clearAuth } from "../../features/auth/authSlice";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios"; 
-import Feed from "./components/Feed.jsx"; // <-- Explicit .jsx extension added
-import CreatePost from "./components/CreatePost.jsx"; // <-- Explicit .jsx extension added
-import ExploreUsers from "./components/ExploreUsers.jsx"; // <-- Explicit .jsx extension added
+import Feed from "./components/Feed.jsx"; 
+import CreatePost from "./components/CreatePost.jsx";
+import ExploreUsers from "./components/ExploreUsers.jsx"; 
 import { LogOut, Home, Users, UserPlus, Search } from "lucide-react";
 
 const Dashboard = () => {
@@ -16,17 +16,12 @@ const Dashboard = () => {
     const location = useLocation();
     const axiosPrivate = useAxiosPrivate();
     
-    // State for user data and follow lists
     const [userData, setUserData] = useState(null);
     const [followingData, setFollowingData] = useState(null);
     const [followersData, setFollowersData] = useState(null);
 
-    // Internal routing state: 'feed' (default) or 'explore'
     const [currentView, setCurrentView] = useState('feed'); 
 
-    // --- Data Fetching Functions (Refactored to be reusable) ---
-    
-    // Fetch current user data
     const getUser = useCallback(async (controller) => {
         try {
             const response = await axiosPrivate.get('/user', { signal: controller?.signal }); 
@@ -39,7 +34,6 @@ const Dashboard = () => {
         }
     }, [axiosPrivate, navigate, location]);
 
-    // Fetch following list - made stable with useCallback
     const getFollowing = useCallback(async (controller) => {
         try{
             const following = await axiosPrivate.get('/following', { signal: controller?.signal });
@@ -52,7 +46,6 @@ const Dashboard = () => {
         }
     }, [axiosPrivate]);
 
-    // Fetch followers list - made stable with useCallback
     const getFollowers = useCallback(async (controller) => {
         try{
             const followers = await axiosPrivate.get('/followers', { signal: controller?.signal });
@@ -65,7 +58,6 @@ const Dashboard = () => {
         }
     }, [axiosPrivate]);
 
-    // Initial Data Load Effect
     useEffect(() => {
         const controller = new AbortController();
 
@@ -89,26 +81,23 @@ const Dashboard = () => {
         }
     }
 
-    // Function to render the middle column content based on currentView state
     const renderMainContent = () => {
         if (currentView === 'explore') {
             return (
                 <ExploreUsers 
                     followingData={followingData || []} 
                     currentUserId={userData?.id}
-                    // Pass the refresh function down to update counts when a user is followed/unfollowed
                     refreshFollowing={getFollowing} 
                 />
             );
         }
 
-        // Default to Feed view
         return (
             <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-md overflow-hidden">
                     <CreatePost />
                 </div>
-                <Feed />
+                <Feed currentUserId={userData?.id} />
             </div>
         );
     }
@@ -161,7 +150,7 @@ const Dashboard = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
-                    {/* Left Panel - User Info (unchanged) */}
+                    {/* Left Panel */}
                     <aside className="lg:col-span-3">
                         <div className="bg-white rounded-xl shadow-md p-6 sticky top-24">
                             <div className="text-center">
@@ -206,7 +195,7 @@ const Dashboard = () => {
                         {renderMainContent()}
                     </main>
 
-                    {/* Right Panel - Following & Followers (unchanged) */}
+                    {/* Right Panel */}
                     <aside className="lg:col-span-3 space-y-6">
                         {/* Following Section */}
                         <div className="bg-white rounded-xl shadow-md p-6">

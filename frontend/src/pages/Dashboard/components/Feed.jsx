@@ -1,11 +1,13 @@
 import React from 'react';
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useEffect, useState } from "react";
+import axiosPrivate from '../../../hooks/useAxiosPrivate';
 import { Calendar, User } from "lucide-react";
 
-const Feed = () => {
+const Feed = ({ currentUserId }) => {
   const axiosPrivate = useAxiosPrivate();
   const [feedData, setFeedData] = useState(null);
+
 
   useEffect(() => { 
     const fetchFeed = async () => {
@@ -19,7 +21,16 @@ const Feed = () => {
     };
 
     fetchFeed();
-  }, []);
+  }, [axiosPrivate]);
+
+  const handleDeletePost = async (postId) => {
+    try {
+      await axiosPrivate.delete(`/post/${postId}`);
+      setFeedData(prevData => prevData.filter(post => post.id !== postId));
+    } catch (err) {
+      console.error("Error deleting post:", err);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -66,7 +77,9 @@ const Feed = () => {
               {/* Post Footer */}
               <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
                 <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Post ID: {item.id}</span>
+                  {item.user.id === currentUserId && (
+                    <button onClick={() => handleDeletePost(item.id)} className='font-semibold text-red-600 hover:text-red-500'>Delete Post ?</button>
+                  )}
                   <span>
                     {new Date(item.created_at).toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
