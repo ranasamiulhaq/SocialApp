@@ -1,41 +1,96 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
-import { useState } from "react";
-import { Send, FileText, AlignLeft } from "lucide-react";
+import { Send, FileText, AlignLeft, Image as ImageIcon, X } from "lucide-react";
 
 const CreatePost = () => {
     const axiosPrivate = useAxiosPrivate();
+    // Keep useRef for the file input
+    const fileInputRef = useRef(null); 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+
+    // Keep mediaFile state only for preview purposes
+    const [mediaFile, setMediaFile] = useState(null); 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
+
+    const handleFileChange = (e) => {
+        // Update state for preview
+        if (e.target.files && e.target.files[0]) {
+            setMediaFile(e.target.files[0]);
+        } else {
+            setMediaFile(null);
+        }
+    };
+    
+    const handleRemoveMedia = () => {
+        setMediaFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""; // Clear the file input value
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        setStatusMessage('');
+
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+
+        // --- THE CRITICAL FIX ---
+        // Get the file directly from the DOM reference, not the state object.
+        // This ensures the correct UploadedFile is sent in the FormData.
+        const fileToUpload = fileInputRef.current?.files?.[0];
+        
+        if (fileToUpload) {
+            // Append the actual file object retrieved from the input element
+            formData.append('media_file', fileToUpload); 
+        }
+        // ------------------------
+
         try {
-            const response = await axiosPrivate.post('/post', { title, description });
+            const response = await axiosPrivate.post('/post', formData);
             console.log("Post created:", response.data);
+            setStatusMessage("Post created successfully!");
+            
             setTitle('');
             setDescription('');
+            handleRemoveMedia(); 
         } catch (err) {
             console.error("Error creating post:", err);
+            // Enhanced logging for better error visibility on the client side
+            const errorMsg = err.response?.data?.message || err.message || "Failed to create post. Check console for details.";
+            setStatusMessage(`Failed to create post: ${errorMsg}`);
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return(
-        <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <FileText size={20} className="text-white" />
+        <div className="p-6 max-w-xl mx-auto bg-white shadow-xl rounded-2xl">
+            {/* ... (rest of the component is unchanged) ... */}
+            <div className="flex items-center gap-3 mb-6 border-b pb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <FileText size={24} className="text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-800">Create a New Post</h2>
+                <h2 className="text-2xl font-extrabold text-gray-800">Create a New Post</h2>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {statusMessage && (
+                <div className={`p-3 mb-4 rounded-lg text-sm font-medium ${
+                    statusMessage.includes("successfully") ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                    {statusMessage}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {/* Title Input */}
                 <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2" htmlFor="title">
+                    <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2" htmlFor="title">
                         <FileText size={16} className="text-blue-600" />
                         Title
                     </label>
@@ -45,13 +100,14 @@ const CreatePost = () => {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Enter an engaging title..."
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors bg-gray-50 focus:bg-white"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all bg-gray-50 hover:bg-white"
                         required
                     />
                 </div>
                 
+                {/* Description Input */}
                 <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2" htmlFor="description">
+                    <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2" htmlFor="description">
                         <AlignLeft size={16} className="text-purple-600" />
                         Description
                     </label>
@@ -61,20 +117,78 @@ const CreatePost = () => {
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Share your thoughts..."
                         rows="4"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors resize-none bg-gray-50 focus:bg-white"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none transition-all resize-none bg-gray-50 hover:bg-white"
                         required
                     />
                 </div>
                 
+                {/* Media Upload Input with Preview and Removal */}
+                <div className="p-4 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
+                    <label className="flex items-center gap-2 text-sm font-bold text-gray-700 mb-2" htmlFor="media">
+                        <ImageIcon size={16} className="text-green-600" />
+                        Optional Media (Image/Video)
+                    </label>
+
+                    {mediaFile ? (
+                        <div className="mt-3 p-3 bg-white rounded-xl shadow-md border border-gray-100">
+                            <h4 className="text-xs font-semibold text-gray-600 mb-3 border-b pb-2">Media Preview:</h4>
+                            
+                            {mediaFile.type.startsWith('image/') && (
+                                <img 
+                                    src={URL.createObjectURL(mediaFile)} 
+                                    alt="Media Preview" 
+                                    className="max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
+                                />
+                            )}
+                            
+                            {mediaFile.type.startsWith('video/') && (
+                                <video 
+                                    src={URL.createObjectURL(mediaFile)} 
+                                    controls 
+                                    className="max-w-full h-auto max-h-48 object-contain rounded-lg mx-auto"
+                                />
+                            )}
+                            
+                            <p className="mt-4 text-sm text-gray-600 text-center truncate">
+                                Selected: <span className="font-semibold text-green-700">{mediaFile.name}</span>
+                            </p>
+
+                            <button 
+                                type="button" 
+                                onClick={handleRemoveMedia}
+                                className="mt-4 w-full flex items-center justify-center gap-1 bg-red-500 text-white py-2 rounded-xl text-sm font-semibold hover:bg-red-600 transition-colors shadow-sm"
+                            >
+                                <X size={16} />
+                                Remove Media
+                            </button>
+                        </div>
+                    ) : (
+                        <input
+                            type="file"
+                            id="media"
+                            ref={fileInputRef}
+                            accept="image/*,video/*" 
+                            onChange={handleFileChange}
+                            className="w-full text-sm text-gray-500
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-full file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-green-50 file:text-green-700
+                                    hover:file:bg-green-100"
+                        />
+                    )}
+                </div>
+
+                {/* Submit Button */}
                 <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     {isSubmitting ? (
                         <>
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Creating...</span>
+                            <span>Uploading & Creating...</span>
                         </>
                     ) : (
                         <>
