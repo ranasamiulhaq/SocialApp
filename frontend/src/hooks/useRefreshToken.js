@@ -8,15 +8,33 @@ const useRefreshToken = () => {
     const refresh = async () => {
         try {
             console.log("[useRefreshToken] Attempting POST to /refresh endpoint...");
+            console.log("[useRefreshToken] Using withCredentials to send cookies");
+            
             const response = await axios.post('/refresh', {}, {
-                withCredentials: true
+                withCredentials: true,
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
+            
             const newAccessToken = response.data.access_token;
-            console.log("[useRefreshToken] Refresh successful. New access token received.");
+            
+            if (!newAccessToken) {
+                console.error("[useRefreshToken] No access token in response");
+                throw new Error('No access token received');
+            }
+            
+            console.log("[useRefreshToken] Refresh successful. New access token received:", 
+                newAccessToken.substring(0, 20) + '...');
+            
             dispatch(setNewToken({ accessToken: newAccessToken }));
             return newAccessToken;
         } catch (err) {
-            console.error("[useRefreshToken] Refresh API call failed.", err.response?.data || err.message); 
+            console.error("[useRefreshToken] Refresh API call failed");
+            console.error("[useRefreshToken] Status:", err.response?.status);
+            console.error("[useRefreshToken] Data:", err.response?.data);
+            console.error("[useRefreshToken] Message:", err.message);
             throw err;
         }
     }

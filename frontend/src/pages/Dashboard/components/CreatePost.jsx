@@ -17,23 +17,15 @@ const CreatePost = () => {
         
         if (file) {
             setMediaFile(file);
-            console.log('✅ File set in state:', {
-                name: file.name,
-                type: file.type,
-                size: file.size
-            });
         } else {
             setMediaFile(null);
-            console.log('⚠️ File cleared from state');
         }
     };
     
     const handleRemoveMedia = () => {
-        console.log('🗑️ Removing media...');
         setMediaFile(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
-            console.log('✅ File input cleared');
         }
     };
 
@@ -46,52 +38,23 @@ const CreatePost = () => {
         formData.append('title', title);
         formData.append('description', description);
 
-        // CRITICAL FIX: Use the state variable instead of the ref
-        // because the file input gets unmounted when preview is shown
-        console.log('🔍 Checking mediaFile state:', {
-            hasFile: !!mediaFile,
-            fileName: mediaFile?.name,
-            fileType: mediaFile?.type,
-            fileSize: mediaFile?.size
-        });
-
         // Use mediaFile from state (not from ref!)
         if (mediaFile) {
             formData.append('media_file', mediaFile);
-            console.log('✅ File attached to FormData:', {
-                name: mediaFile.name,
-                type: mediaFile.type,
-                size: mediaFile.size
-            });
         } else {
             console.log('ℹ️ No file selected');
         }
 
-        // Debug: Verify FormData contents
-        console.log('📦 FormData entries:');
-        for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(`  ${key}:`, `[File: ${value.name}]`);
-            } else {
-                console.log(`  ${key}:`, value);
-            }
-        }
-
         try {
-            // CRITICAL: DO NOT set Content-Type header manually
-            // Let the browser set it with the correct boundary parameter
             const response = await axiosPrivate.post('/post', formData);
             
             console.log("✅ Post created successfully:", response.data);
             setStatusMessage("Post created successfully!");
             
-            // Clear form
             setTitle('');
             setDescription('');
             handleRemoveMedia(); 
         } catch (err) {
-            console.error("❌ Error creating post:", err);
-            console.error("Error response:", err.response?.data);
             const errorMsg = err.response?.data?.message || err.message || "Failed to create post.";
             setStatusMessage(`Failed to create post: ${errorMsg}`);
         } finally {

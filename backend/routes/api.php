@@ -9,6 +9,9 @@ use App\Http\Controllers\FollowController;
 
 //Public Routes
 Route::post('/register',[AuthController::class,'register']);
+Route::get('/check',function(){
+    return response()->json(['message' => 'API is working fine'], 200);
+});
 Route::post('/login',[AuthController::class,'login']);
 
 
