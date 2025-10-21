@@ -45,91 +45,82 @@ class PostController extends Controller
         return Post::where('id', $id)->where('user_id', auth()->id())->firstOrFail();
     }
 
-  public function createPost(Request $request)
-    {
-        $fileReceived = $request->hasFile('media_file');
-        
-        // --- DEBUG STEP 1: LOG FILE INFO BEFORE VALIDATION ---
-        if ($fileReceived) {
-            Log::info('[PostController] File Upload Detected: ' . $request->file('media_file')->getClientOriginalName());
-            Log::info('File Mime Type: ' . $request->file('media_file')->getMimeType());
-        } else {
-            // This is the message that indicates the media_url will be NULL.
-            Log::warning('[PostController] No file detected in request. (File will not be saved).'); 
-        }
-        // ---------------------------------------------------
-
-        // 1. Validation
-        try {
-            $validatedData = $request->validate([
-                'title' => ['required', 'string', 'max:255'],
-                'description' => ['required', 'string'],
-                'media_file' => [
-                    'sometimes', 
-                    'file', 
-                    'mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm', 
-                    'max:10240' 
-                ], 
-            ]);
-            Log::info('[PostController] Validation Passed.'); 
-        } catch (ValidationException $e) {
-            Log::error('[PostController] Validation FAILED.', ['errors' => $e->errors()]); 
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            Log::error('[PostController] UNEXPECTED ERROR during Validation/Request.', ['message' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'An unexpected server error occurred during validation.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-
-        $mediaPath = null;
-        
-        // 2. Handle File Upload (This block only executes if $request->hasFile() is true)
-        try {
-            // Check again using the stored flag, or directly with $request->hasFile()
-            if ($fileReceived) {
-                // Store the file in 'storage/app/public/posts_media'
-                $mediaPath = $request->file('media_file')->store('posts_media', 'public');
-                Log::info('[PostController] File Stored Successfully.', ['path' => $mediaPath]);
+    public function createPost(Request $request)
+        {
+            // 1. Validation FIRST
+            try {
+                $validatedData = $request->validate([
+                    'title' => ['required', 'string', 'max:255'],
+                    'description' => ['required', 'string'],
+                    'media_file' => [
+                        'nullable',  // Changed from 'sometimes' to 'nullable'
+                        'file', 
+                        'mimes:jpeg,png,jpg,gif,svg,mp4,mov,ogg,webm', 
+                        'max:10240' 
+                    ], 
+                ]);
+                Log::info('[PostController] Validation Passed.'); 
+            } catch (ValidationException $e) {
+                Log::error('[PostController] Validation FAILED.', ['errors' => $e->errors()]); 
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $e->errors(),
+                ], 422);
+            } catch (\Exception $e) {
+                Log::error('[PostController] UNEXPECTED ERROR during Validation/Request.', ['message' => $e->getMessage()]);
+                return response()->json([
+                    'message' => 'An unexpected server error occurred during validation.',
+                    'error' => $e->getMessage(),
+                ], 500);
             }
-        } catch (\Exception $e) {
-             // CRITICAL: This catch block will tell you if permissions or the disk setup is wrong.
-            Log::error('[PostController] FILE STORAGE FAILED.', ['message' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'File storage failed. Check server permissions/storage link.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
 
-        // 3. Create Post
-        try {
-            $post = Post::create([
-                'user_id' => auth()->id(), 
-                'title' => $validatedData['title'],
-                'description' => $validatedData['description'],
-                'media_url' => $mediaPath, // $mediaPath is null if file was not stored
-            ]);
-            Log::info('[PostController] Post Created Successfully.', ['post_id' => $post->id]);
-        } catch (\Exception $e) {
-            Log::error('[PostController] POST DB CREATION FAILED.', ['message' => $e->getMessage()]);
-            return response()->json([
-                'message' => 'Database record creation failed.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-        
-        // 4. Generate Public URL for response
-        $publicMediaUrl = $mediaPath ? Storage::url($mediaPath) : null; 
+            $mediaPath = null;
+            
+            // 2. Handle File Upload AFTER validation
+            try {
+                // Check AFTER validation - this is the key fix
+                if ($request->hasFile('media_file')) {
+                    Log::info('[PostController] File detected: ' . $request->file('media_file')->getClientOriginalName());
+                    
+                    // Store the file in 'storage/app/public/posts_media'
+                    $mediaPath = $request->file('media_file')->store('posts_media', 'public');
+                    Log::info('[PostController] File Stored Successfully.', ['path' => $mediaPath]);
+                } else {
+                    Log::warning('[PostController] No file detected in request.');
+                }
+            } catch (\Exception $e) {
+                Log::error('[PostController] FILE STORAGE FAILED.', ['message' => $e->getMessage()]);
+                return response()->json([
+                    'message' => 'File storage failed. Check server permissions/storage link.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
 
-        return response()->json([
-            'post' => $post,
-            'media_url' => $publicMediaUrl,
-        ], 201);
-    }
+            // 3. Create Post
+            try {
+                $post = Post::create([
+                    'user_id' => auth()->id(), 
+                    'title' => $validatedData['title'],
+                    'description' => $validatedData['description'],
+                    'media_url' => $mediaPath,
+                ]);
+                Log::info('[PostController] Post Created Successfully.', ['post_id' => $post->id]);
+            } catch (\Exception $e) {
+                Log::error('[PostController] POST DB CREATION FAILED.', ['message' => $e->getMessage()]);
+                return response()->json([
+                    'message' => 'Database record creation failed.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+            
+            // 4. Generate Public URL for response
+            $publicMediaUrl = $mediaPath ? Storage::url($mediaPath) : null; 
+
+            return response()->json([
+                'post' => $post,
+                'media_url' => $publicMediaUrl,
+            ], 201);
+        }
 
     public function deletePost($id)
     {
